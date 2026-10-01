@@ -25,10 +25,6 @@
 #define LARGE_ROOM_NEED      6   // 大教室所需监考人数
 #define SMALL_ROOM_NEED      3   // 小教室所需监考人数
 
-// 前置声明：从考场编号中提取日期/时段（供下方提前引用）。
-void ExtractRoomDate(const char* roomId, char outDate[9]);
-void ExtractRoomTimeSlot(const char* roomId, char outSlot[13]);
-
 // 判断职称是否为“教授”（兼容中文“教授”与英文“Professor”两种数据来源）。
 int IsProfessor(const char* title) {
     return strcmp(title, "教授") == 0 || strcmp(title, "Professor") == 0;
@@ -62,9 +58,11 @@ typedef struct {
 typedef struct {
     char id[30];         // 考场编号
     char name[50];       // 考场名称
-    int capacity;        // 考场容量
+    int capacity;        // 考场容量（大小）
     int usedSeats;       // 已使用座位数
     char status[20];     // 状态（可用/满额/维护）
+    char date[9];        // 考试日期 YYYYMMDD
+    char session[5];     // 场次（时段 HHMM）
     char createTime[20]; // 创建时间
     char subject[50];    // 对应考试科目
 } ExamRoom;
@@ -420,7 +418,7 @@ int IsTeacherUnavailableForRoom(const Teacher* t, const ExamRoom* room) {
     char* token;                 // 当前分词项
 
     if (!req || req[0] == '\0' || strcmp(req, "-") == 0) return 0;
-    ExtractRoomDate(room->id, compactDate);
+    strcpy(compactDate, room->date);
     if (compactDate[0] == '\0') return 0;
 
     strncpy(reqBuf, req, sizeof(reqBuf) - 1);
@@ -449,29 +447,6 @@ int IsTeacherUnavailableForRoom(const Teacher* t, const ExamRoom* room) {
     }
 
     return 0;
-}
-
-void ExtractRoomDate(const char* roomId, char outDate[9]) {
-    // 从考场编号中提取日期部分（YYYYMMDD）。
-    if (!roomId || strlen(roomId) < 11 || strncmp(roomId, "ER-", 3) != 0) {
-        outDate[0] = '\0';
-        return;
-    }
-    strncpy(outDate, roomId + 3, 8);
-    outDate[8] = '\0';
-}
-
-void ExtractRoomTimeSlot(const char* roomId, char outSlot[13]) {
-    // 从考场编号中提取时段键（YYYYMMDDHHMM）。
-    /* slot format: YYYYMMDDHHMM */
-    if (!roomId || strlen(roomId) < 16 || strncmp(roomId, "ER-", 3) != 0 || roomId[11] != '-') {
-        outSlot[0] = '\0';
-        return;
-    }
-
-    strncpy(outSlot, roomId + 3, 8);
-    strncpy(outSlot + 8, roomId + 12, 4);
-    outSlot[12] = '\0';
 }
 
 int GetSlotIndex(char slots[][13], int* slotCount, const char* slotStr) {
@@ -1260,8 +1235,8 @@ void AutoSchedule() {
         // 解析考场所属“日期 + 时段”，用于冲突控制与连续性优化。
         // - dateStr：YYYYMMDD（用于同日聚合策略）
         // - slotStr：YYYYMMDDHHMM（用于同一时段不可重复）
-        ExtractRoomDate(rms[i].id, dateStr);
-        ExtractRoomTimeSlot(rms[i].id, slotStr);
+        strcpy(dateStr, rms[i].date);
+        snprintf(slotStr, sizeof(slotStr), "%s%s", rms[i].date, rms[i].session);
         if (dateStr[0]) {
             curDateIdx = GetDateIndex(datePool, &dateCount, dateStr);
         }

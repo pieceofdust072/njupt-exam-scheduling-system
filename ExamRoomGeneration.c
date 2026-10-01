@@ -19,6 +19,8 @@ typedef struct {
     int capacity;       // 教室容量（>=50 为大教室）
     int usedSeats;      // 当前已占用座位数
     char status[20];    // 考场状态
+    char date[9];       // 考试日期 YYYYMMDD
+    char session[5];    // 场次（时段 HHMM）
     char createTime[20];// 创建时间字符串
     char subject[50];   // 考试科目，用于专业对口排班
 } ExamRoom;
@@ -32,8 +34,8 @@ char* roomNames[] = {
 char* statusList[] = { "Available", "Full", "Maintenance" };
 char* subjects[] = { "Computer", "Automation", "Electronic", "Mathematics", "Language" };
 
-// 生成统一考场编号：ER-YYYYMMDD-HHMM-序号。
-void GenerateID(char* id, int index) {
+// 生成统一考场编号（ER-YYYYMMDD-HHMM-序号），并填充 date/session 字段。
+void GenerateID(ExamRoom* r, int index) {
     // 按序号把考场分散到不同日期/时段，避免全部挤在同一时刻
     // （否则排班规则“同一时段最多一场”会因无可用时段而大面积排不满）。
     const int slotsPerDay = 3;             // 每天 3 个时段
@@ -49,9 +51,17 @@ void GenerateID(char* id, int index) {
     t.tm_sec = 0;
     mktime(&t);                            // 归一化日期（处理跨月/跨年）
 
-    sprintf(id, "ER-%04d%02d%02d-%02d%02d-%03d",
-            t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
-            t.tm_hour, t.tm_min, index + 1);
+    // 日期/时间经 mktime 归一化后均在合法范围，取模仅为让编译器静态分析确认不会溢出。
+    unsigned y   = (unsigned)(t.tm_year + 1900) % 10000u;
+    unsigned mo  = (unsigned)(t.tm_mon + 1) % 100u;
+    unsigned d   = (unsigned)t.tm_mday % 100u;
+    unsigned h   = (unsigned)t.tm_hour % 100u;
+    unsigned mi  = (unsigned)t.tm_min % 100u;
+    unsigned seq = (unsigned)(index + 1) % 1000u;
+
+    snprintf(r->id, sizeof(r->id), "ER-%04u%02u%02u-%02u%02u-%03u", y, mo, d, h, mi, seq);
+    snprintf(r->date, sizeof(r->date), "%04u%02u%02u", y, mo, d);
+    snprintf(r->session, sizeof(r->session), "%02u%02u", h, mi);
 }
 
 // 生成 count 条考场数据并覆盖写入 exam_rooms.dat。
@@ -70,7 +80,7 @@ void GenerateData(int count) {
 
     for (int i = 0; i < count; i++) {
         ExamRoom r;
-        GenerateID(r.id, i);
+        GenerateID(&r, i);
         strcpy(r.name, roomNames[rand() % (sizeof(roomNames) / sizeof(roomNames[0]))]);
         r.capacity = MIN_CAPACITY + (rand() % CAPACITY_RANGE);
         r.usedSeats = 0;
