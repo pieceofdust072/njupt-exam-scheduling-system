@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <limits.h>
 
 #ifdef _MSC_VER
 #pragma comment(lib, "comctl32.lib")
@@ -1267,21 +1268,48 @@ void AutoSchedule() {
 
         // 第一步：筛候选。
         // 约束说明：
-        // 1) 教授仅允许监考本专业考场；
-        // 2) 任意教师都必须满足特殊要求（请假/出差/日期冲突等不过滤后才可用）；
-        // 3) 同一教师在同一时段最多只安排一场（slotLoads == 0）。
+        // 1) 教授仅允许监考本专业考场（教授不参与普通教师的均衡约束）；
+        // 2) 任意教师都必须满足特殊要求（请假/出差/日期冲突等）；
+        // 3) 同一教师在同一时段最多只安排一场（slotLoads == 0）；
+        // 4) 普通教师硬均衡：优先只选“当前监考次数最少”的普通教师，保证彼此相差不超过 1 次。
+
+        // 求普通教师当前最小监考次数，作为本轮均衡基准。
+        int minNonProf = INT_MAX;
+        for (int j = 0; j < aCount; j++) {
+            if (!IsProfessor(allT[j].title) && allT[j].taskCount < minNonProf) {
+                minNonProf = allT[j].taskCount;
+            }
+        }
+        if (minNonProf == INT_MAX) minNonProf = 0;
+
         for (int j = 0; j < aCount; j++) {
             BOOL isProf = IsProfessor(allT[j].title);
+            BOOL avail = !IsTeacherUnavailableForRoom(&allT[j], &rms[i]) &&
+                         (curSlotIdx < 0 || slotLoads[j][curSlotIdx] == 0);
+            if (!avail) continue;
+
             if (isProf) {
                 if (strcmp(allT[j].dept, rms[i].subject) == 0) {
-                    if (!IsTeacherUnavailableForRoom(&allT[j], &rms[i]) &&
-                        (curSlotIdx < 0 || slotLoads[j][curSlotIdx] == 0)) {
-                        candidateIdx[cCount++] = j;
-                    }
+                    candidateIdx[cCount++] = j;
                 }
-            } else {
+            } else if (allT[j].taskCount <= minNonProf) {
+                // 严格均衡：只纳入处于最低负载的普通教师。
+                candidateIdx[cCount++] = j;
+            }
+        }
+
+        // 若最低负载教师不足以填满本考场，放宽一级（允许 minNonProf+1），避免无谓空缺。
+        if (cCount < need) {
+            for (int j = 0; j < aCount; j++) {
+                if (IsProfessor(allT[j].title)) continue;
+                BOOL dup = FALSE;
+                for (int k = 0; k < cCount; k++) {
+                    if (candidateIdx[k] == j) { dup = TRUE; break; }
+                }
+                if (dup) continue;
                 if (!IsTeacherUnavailableForRoom(&allT[j], &rms[i]) &&
-                    (curSlotIdx < 0 || slotLoads[j][curSlotIdx] == 0)) {
+                    (curSlotIdx < 0 || slotLoads[j][curSlotIdx] == 0) &&
+                    allT[j].taskCount <= minNonProf + 1) {
                     candidateIdx[cCount++] = j;
                 }
             }
