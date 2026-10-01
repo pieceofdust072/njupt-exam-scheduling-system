@@ -11,9 +11,10 @@
 typedef struct {
     char id[20];          // 教师编号
     char name[50];        // 教师姓名
-    char subject[50];        // 所带专业/科目
+    char subject[50];     // 所带专业/科目
     char title[20];       // 职称分类（主系统将 "教授"/"Professor" 均视为教授）
     char specialReq[100]; // 特殊要求文本
+    char classes[40];     // 所带班级（分号分隔，如 "1班;2班"；"-" 表示未指定）
     int taskCount;        // 已安排任务次数
 } Teacher;
 
@@ -45,6 +46,20 @@ void GenerateData(int count) {
         else strcpy(t.title, titleList[1]);
 
         strcpy(t.specialReq, "-"); // 默认无特殊要求
+
+        // 随机生成 1~3 个所带班级，如 "1班" / "1班;2班" / "1班;2班;3班"。
+        {
+            int classCount = 1 + (rand() % 3);
+            char cls[40] = {0};
+            for (int c = 0; c < classCount; c++) {
+                if (c > 0) strcat(cls, ";");
+                char one[8];
+                sprintf(one, "%d班", c + 1);
+                strcat(cls, one);
+            }
+            strcpy(t.classes, cls);
+        }
+
         t.taskCount = 0;           // 初始未安排考场
         fwrite(&t, sizeof(Teacher), 1, fp);
     }
@@ -64,10 +79,10 @@ int LoadData(Teacher t[], int max) {
 
 // 按表格格式打印教师信息，便于在命令行快速检查数据。
 void Display(Teacher t[], int n) {
-    printf("\n%-10s %-20s %-12s %-16s %-10s %-20s\n", "ID", "Name", "Subject", "Title", "TaskCount", "SpecialReq");
-    printf("------------------------------------------------------------------------------------------------\n");
+    printf("\n%-10s %-20s %-12s %-16s %-10s %-14s %-20s\n", "ID", "Name", "Subject", "Title", "TaskCount", "Classes", "SpecialReq");
+    printf("---------------------------------------------------------------------------------------------------------\n");
     for (int i = 0; i < n; i++) {
-        printf("%-10s %-20s %-12s %-16s %-10d %-20s\n", t[i].id, t[i].name, t[i].subject, t[i].title, t[i].taskCount, t[i].specialReq);
+        printf("%-10s %-20s %-12s %-16s %-10d %-14s %-20s\n", t[i].id, t[i].name, t[i].subject, t[i].title, t[i].taskCount, t[i].classes, t[i].specialReq);
     }
 }
 

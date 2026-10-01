@@ -38,9 +38,10 @@ int IsProfessor(const char* title) {
 typedef struct {
     char id[20];          // 教师编号
     char name[50];        // 教师姓名
-    char subject[50];        // 所带专业/科目
+    char subject[50];     // 所带专业/科目
     char title[20];       // 职称
     char specialReq[100]; // 特殊要求（日期/请假等）
+    char classes[40];     // 所带班级（分号分隔，如 "1班;2班"；"-" 表示未指定）
     int taskCount;        // 已安排监考次数
 } Teacher;
 
@@ -1016,6 +1017,7 @@ void RefreshTeacherList() {
         char buf[10]; sprintf(buf, "%d", t->taskCount);
         ListView_SetItemText(hTeacherList, pos, 4, buf);
         ListView_SetItemText(hTeacherList, pos, 7, t->specialReq[0] ? t->specialReq : "-");
+        ListView_SetItemText(hTeacherList, pos, 8, t->classes[0] ? t->classes : "-");
 
         char* modTime = "-";
         char* opName = "-";
@@ -1232,6 +1234,7 @@ void AutoSchedule() {
     int unfilledRoomCount = 0;         // 未排满考场数量
     char roomIssueList[MAX_ROOM_ISSUES][220] = {{0}}; // 未满足考场问题清单
     int roomIssueCount = 0;            // 问题条目数
+    int mandatoryDone[MAX_TEACHERS] = {0}; // 每位教师是否已担任过任课监考（“带多个班只监考一个班”）
 
     char currentTimeStr[30] = {0};     // 自动排班写入的修改时间
     time_t now = time(NULL);           // 当前时间戳
@@ -1325,13 +1328,24 @@ void AutoSchedule() {
 
         // 第二步：强制位（任课监考）
         // 规则：每个考场至少 1 名“专业匹配教师”。
-        // 若有多名匹配者，优先选择 taskCount 更低者以保持全局均衡。
+        // “带多个班只监考一个班”：优先选尚未担任过任课监考的本专业教师，人人先轮一遍。
         int mandatory = -1; // 任课监考必选位
         for (int j = 0; j < cCount; j++) {
             int idx = candidateIdx[j];
-            if (strcmp(allT[idx].subject, rms[i].subject) == 0) {
+            if (strcmp(allT[idx].subject, rms[i].subject) == 0 && !mandatoryDone[idx]) {
                 if (mandatory == -1 || allT[idx].taskCount < allT[mandatory].taskCount) {
                     mandatory = idx;
+                }
+            }
+        }
+        // 若本专业教师都已被轮过，则允许重复（教师不足时的回退）。
+        if (mandatory == -1) {
+            for (int j = 0; j < cCount; j++) {
+                int idx = candidateIdx[j];
+                if (strcmp(allT[idx].subject, rms[i].subject) == 0) {
+                    if (mandatory == -1 || allT[idx].taskCount < allT[mandatory].taskCount) {
+                        mandatory = idx;
+                    }
                 }
             }
         }
@@ -1354,6 +1368,7 @@ void AutoSchedule() {
             ListView_SetItemText(hScheduleList, pos, 4, autoOperatorName);
 
             selected[mandatory] = 1;
+            mandatoryDone[mandatory] = 1; // 该教师已完成其“一个班”的任课监考
             allT[mandatory].taskCount++;
             if (curDateIdx >= 0) dateLoads[mandatory][curDateIdx]++;
             if (curSlotIdx >= 0) slotLoads[mandatory][curSlotIdx]++;
@@ -1606,6 +1621,7 @@ LRESULT CALLBACK EditTeacherProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
             for (int i = 0; i < cnt; i++) {
                 if (strcmp(cache[i].id, editingTeacher.id) == 0) {
                     newData.taskCount = cache[i].taskCount;
+                    strcpy(newData.classes, cache[i].classes); // 编辑不改动所带班级
                     cache[i] = newData;
                     break;
                 }
@@ -1818,9 +1834,9 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         // 上半区：教师列表。
         hTeacherList = CreateWindowEx(0, WC_LISTVIEW, "", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL, 10, 10, 960, 150, hWnd, NULL, NULL, NULL);
         ListView_SetExtendedListViewStyle(hTeacherList, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
-        char* tH[] = { "ID", "姓名", "专业", "职称", "次数", "修改时间", "操作人", "特殊要求" }; // 教师列表列标题
-        int tW[] = { 60, 80, 100, 100, 50, 160, 100, 220 }; // 教师列表列宽
-        for (int i = 0; i < 8; i++) {
+        char* tH[] = { "ID", "姓名", "专业", "职称", "次数", "修改时间", "操作人", "特殊要求", "班级" }; // 教师列表列标题
+        int tW[] = { 60, 80, 100, 100, 50, 160, 100, 200, 100 }; // 教师列表列宽
+        for (int i = 0; i < 9; i++) {
             LVCOLUMN lvc = {0}; lvc.mask = LVCF_TEXT | LVCF_WIDTH; lvc.pszText = tH[i]; lvc.cx = tW[i];
             ListView_InsertColumn(hTeacherList, i, &lvc);
         }
