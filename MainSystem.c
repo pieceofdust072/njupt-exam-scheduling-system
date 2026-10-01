@@ -941,6 +941,13 @@ static int CompareRoomById(const void* a, const void* b) {
     return strcmp(ra->id, rb->id);
 }
 
+// 按考场详情排序（ER-日期-时间前缀天然按时间先后排列）。
+static int CompareScheduleByRoom(const void* a, const void* b) {
+    const ScheduleEntry* sa = (const ScheduleEntry*)a;
+    const ScheduleEntry* sb = (const ScheduleEntry*)b;
+    return strcmp(sa->roomDetail, sb->roomDetail);
+}
+
 // qsort 上下文：候选教师优先级比较依赖当前考场、日期负载与已选标记。
 static const Teacher* g_sortTeachers;
 static const ExamRoom* g_sortRoom;
@@ -1086,6 +1093,46 @@ void RefreshScheduleList() {
 
     PopulateScheduleList(arr, cnt, NULL);
     free(arr);
+}
+
+// 按教师姓名关键字，输出该老师的全部监考安排报告（按时间排序）。
+int ShowTeacherScheduleReport(HWND owner, const char* keyword) {
+    ScheduleEntry* arr = (ScheduleEntry*)malloc(MAX_SCHEDULES * sizeof(ScheduleEntry));
+    if (!arr) return 0;
+
+    int total = LoadAllSchedules(arr, MAX_SCHEDULES);
+
+    ScheduleEntry* matches = (ScheduleEntry*)malloc(MAX_SCHEDULES * sizeof(ScheduleEntry));
+    if (!matches) { free(arr); return 0; }
+    int m = 0;
+    for (int i = 0; i < total; i++) {
+        if (strstr(arr[i].teacherName, keyword) != NULL) {
+            matches[m++] = arr[i];
+        }
+    }
+    free(arr);
+
+    if (m == 0) { free(matches); return 0; }
+
+    // 按考场详情排序，ER-日期-时间前缀天然按时间先后排列。
+    qsort(matches, m, sizeof(ScheduleEntry), CompareScheduleByRoom);
+
+    char msg[8192];
+    int used = 0;
+    used += snprintf(msg + used, sizeof(msg) - used,
+                     "教师监考安排查询\n\n教师: %s\n共 %d 场监考\n"
+                     "----------------------------------------\n",
+                     matches[0].teacherName, m);
+    for (int i = 0; i < m; i++) {
+        used += snprintf(msg + used, sizeof(msg) - used,
+                         "%d. 考场: %s\n   匹配: %s\n",
+                         i + 1, matches[i].roomDetail, matches[i].matchDetail);
+        if (used >= (int)sizeof(msg) - 256) break;
+    }
+
+    ShowReportWindow(owner, "教师监考安排查询报告", msg);
+    free(matches);
+    return m;
 }
 
 void SaveCurrentSchedule() {
@@ -1928,8 +1975,10 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
                 RefreshScheduleList();
                 MessageBox(hWnd, "查询条件为空，已显示全部监考安排。", "提示", MB_OK | MB_ICONINFORMATION);
             } else {
+                // 直接输出该老师的全部监考安排报告，并同步过滤列表。
+                int found = ShowTeacherScheduleReport(hWnd, keyword);
                 FilterScheduleListByTeacher(keyword);
-                if (ListView_GetItemCount(hScheduleList) == 0) {
+                if (found == 0) {
                     BuildNoScheduleReason(keyword, reason, sizeof(reason));
                     ShowReportWindow(hWnd, "教师排班查询报告", reason[0] ? reason : "未找到该老师的监考安排。");
                     MessageBox(hWnd, "未查询到该老师的监考安排，详细原因已打开报告窗口。", "查询结果", MB_OK | MB_ICONINFORMATION);
