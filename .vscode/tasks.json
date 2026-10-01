@@ -1,0 +1,85 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build MainSystem",
+            "command": "$env:PATH='C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;' + $env:PATH; & \"C:\\msys64\\ucrt64\\bin\\gcc.exe\" -finput-charset=UTF-8 -fexec-charset=GBK -g -o \"${workspaceFolder}\\MainSystem.exe\" \"${workspaceFolder}\\MainSystem.c\" -mwindows -luser32 -lcomctl32; exit $LASTEXITCODE",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+        {
+            "type": "cppbuild",
+            "label": "C/C++: gcc.exe 生成活动文件",
+            "command": "C:\\msys64\\ucrt64\\bin\\gcc.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-finput-charset=UTF-8",
+                "-fexec-charset=GBK",
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}\\${fileBasenameNoExtension}.exe"
+            ],
+            "options": {
+                "cwd": "${fileDirname}",
+                "env": {
+                    "PATH": "C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "调试器生成的任务。"
+        },
+        {
+            "type": "shell",
+            "label": "Build and Run MainSystem",
+            "command": "$env:PATH='C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;' + $env:PATH; & \"C:\\msys64\\ucrt64\\bin\\gcc.exe\" -finput-charset=UTF-8 -fexec-charset=GBK -g -o \"${workspaceFolder}\\MainSystem.exe\" \"${workspaceFolder}\\MainSystem.c\" -mwindows -luser32 -lcomctl32; if ($LASTEXITCODE -eq 0) { & \"${workspaceFolder}\\MainSystem.exe\" } else { exit $LASTEXITCODE }",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "none",
+                "isDefault": false
+            }
+        },
+        {
+            "type": "shell",
+            "label": "Run MainSystem",
+            "command": "$env:PATH='C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;' + $env:PATH; if (Test-Path \"${workspaceFolder}\\MainSystem.exe\") { & \"${workspaceFolder}\\MainSystem.exe\" } else { Write-Error \"MainSystem.exe 不存在，请先执行 Build MainSystem\"; exit 1 }",
+            "options": {
+                "cwd": "${workspaceFolder}",
+                "env": {
+                    "PATH": "C:\\msys64\\ucrt64\\bin;C:\\msys64\\usr\\bin;${env:PATH}"
+                }
+            },
+            "problemMatcher": [],
+            "group": {
+                "kind": "none",
+                "isDefault": false
+            }
+        }
+    ]
+}

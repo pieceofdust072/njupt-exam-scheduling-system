@@ -1,0 +1,11 @@
+# 编译产物
+*.exe
+*.o
+*.obj
+
+# 运行时数据文件
+*.dat
+
+# 残留 / 日志 / 备份 / 导出
+*.pre_comment_backup
+*.txt
