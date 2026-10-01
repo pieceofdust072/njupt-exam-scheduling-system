@@ -34,11 +34,24 @@ char* subjects[] = { "Computer", "Automation", "Electronic", "Mathematics", "Lan
 
 // 生成统一考场编号：ER-YYYYMMDD-HHMM-序号。
 void GenerateID(char* id, int index) {
+    // 按序号把考场分散到不同日期/时段，避免全部挤在同一时刻
+    // （否则排班规则“同一时段最多一场”会因无可用时段而大面积排不满）。
+    const int slotsPerDay = 3;             // 每天 3 个时段
+    const int slotHours[] = { 9, 14, 19 }; // 上午 / 下午 / 晚上
+    int slotIdx = index % slotsPerDay;
+    int dayOffset = index / slotsPerDay;
+
     time_t now = time(NULL);
-    struct tm* t = localtime(&now);
+    struct tm t = *localtime(&now);        // 拷贝到本地结构，避免被后续调用覆盖
+    t.tm_mday += dayOffset;                // 分散到不同天
+    t.tm_hour = slotHours[slotIdx];        // 分散到不同时段
+    t.tm_min = 0;
+    t.tm_sec = 0;
+    mktime(&t);                            // 归一化日期（处理跨月/跨年）
+
     sprintf(id, "ER-%04d%02d%02d-%02d%02d-%03d",
-            t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-            t->tm_hour, t->tm_min, index + 1);
+            t.tm_year + 1900, t.tm_mon + 1, t.tm_mday,
+            t.tm_hour, t.tm_min, index + 1);
 }
 
 // 生成 count 条考场数据并覆盖写入 exam_rooms.dat。
