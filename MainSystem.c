@@ -1404,6 +1404,25 @@ void AutoSchedule() {
                 rms[i].id, rms[i].name, need);
         }
 
+        // 硬性同日聚合：当日已排班教师足够填满剩余位置时，只保留他们，实现“尽量一天完成”。
+        if (curDateIdx >= 0) {
+            int sameDayCount = 0;
+            for (int j = 0; j < cCount; j++) {
+                int idx = candidateIdx[j];
+                if (idx != mandatory && dateLoads[idx][curDateIdx] > 0) sameDayCount++;
+            }
+            if (sameDayCount >= need - assigned) {
+                int n = 0;
+                for (int j = 0; j < cCount; j++) {
+                    int idx = candidateIdx[j];
+                    if (idx == mandatory || dateLoads[idx][curDateIdx] > 0) {
+                        candidateIdx[n++] = idx;
+                    }
+                }
+                cCount = n;
+            }
+        }
+
         // 第三步：巡考位
         // 在剩余候选中选 1 人作为巡考，并计入教师任务次数。
         // 巡考位也走统一优先级函数，确保“同日聚合 + 均衡 + 专业倾向”。
