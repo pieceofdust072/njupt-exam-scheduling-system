@@ -90,6 +90,7 @@ HWND hEditID, hEditName, hEditSubject, hEditTitle; // 教师编辑窗口输入�
 HWND hEditSpecialReq; // 特殊要求输入框句柄
 HWND hReqDatePicker, hReqReasonCombo; // 日期选择与原因下拉控件句柄
 HWND hSearchTeacher; // 教师查询输入框句柄
+HWND hSearchLabel, hHintStatic; // 查询标签与提示文本句柄（用于自适应布局）
 
 HWND hEditSchedTeacher, hEditSchedRoomDetail, hEditSchedMatchDetail; // 排班编辑窗口输入框句柄
 ScheduleEntry editingSchedule; // 当前正在编辑的排班记录
@@ -1777,11 +1778,18 @@ LRESULT CALLBACK LoginWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
             isLoggedIn = TRUE;
             strcpy(currentUser, u);
-            if (!CreateWindow("MClass", "高校考勤排班管理系统", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 80, 1300, 580, NULL, NULL, (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL)) {
-                MessageBox(hWnd, "主窗口创建失败，请重试。", "错误", MB_OK | MB_ICONERROR);
-                isLoggedIn = FALSE;
-                currentUser[0] = '\0';
-                break;
+            {
+                int sw = GetSystemMetrics(SM_CXSCREEN);
+                int sh = GetSystemMetrics(SM_CYSCREEN);
+                int mw = 1300, mh = 580;
+                if (!CreateWindow("MClass", "高校考勤排班管理系统", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                                  (sw - mw) / 2, (sh - mh) / 2, mw, mh, NULL, NULL,
+                                  (HINSTANCE)GetWindowLongPtr(hWnd, GWLP_HINSTANCE), NULL)) {
+                    MessageBox(hWnd, "主窗口创建失败，请重试。", "错误", MB_OK | MB_ICONERROR);
+                    isLoggedIn = FALSE;
+                    currentUser[0] = '\0';
+                    break;
+                }
             }
             DestroyWindow(hWnd);
         } else if (LOWORD(wParam) == 102) {
@@ -1881,9 +1889,9 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         CreateWindow("BUTTON", "增加考场安排信息", WS_CHILD | WS_VISIBLE, 360, 440, 160, 40, hWnd, (HMENU)503, NULL, NULL);
         CreateWindow("BUTTON", "导出考场安排为TXT", WS_CHILD | WS_VISIBLE, 530, 440, 140, 40, hWnd, (HMENU)506, NULL, NULL);
         CreateWindow("BUTTON", "连续性统计", WS_CHILD | WS_VISIBLE, 680, 440, 110, 40, hWnd, (HMENU)508, NULL, NULL);
-        CreateWindow("STATIC", "提示：右键排班列表可修改/删除", WS_CHILD | WS_VISIBLE, 800, 450, 220, 20, hWnd, NULL, NULL, NULL);
+        hHintStatic = CreateWindow("STATIC", "提示：右键排班列表可修改/删除", WS_CHILD | WS_VISIBLE, 800, 450, 220, 20, hWnd, NULL, NULL, NULL);
 
-        CreateWindow("STATIC", "按老师姓名查询:", WS_CHILD | WS_VISIBLE, 10, 500, 110, 20, hWnd, NULL, NULL, NULL);
+        hSearchLabel = CreateWindow("STATIC", "按老师姓名查询:", WS_CHILD | WS_VISIBLE, 10, 500, 110, 20, hWnd, NULL, NULL, NULL);
         hSearchTeacher = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE, 120, 495, 220, 28, hWnd, NULL, NULL, NULL);
         CreateWindow("BUTTON", "查询", WS_CHILD | WS_VISIBLE, 350, 494, 70, 30, hWnd, (HMENU)507, NULL, NULL);
 
@@ -1989,6 +1997,30 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             ShowScheduleQualityStats(hWnd);
         }
         break;
+    case WM_SIZE: {
+        // 自适应布局：列表随窗口拉伸，按钮区与查询区贴底。
+        int w = LOWORD(lParam);
+        int h = HIWORD(lParam);
+        int btnY = h - 140;   // 按钮行 y
+        int searchY = h - 85; // 查询行 y
+        int schedH = btnY - 190;
+        if (schedH < 100) schedH = 100;
+
+        if (hTeacherList) MoveWindow(hTeacherList, 10, 10, w - 20, 150, TRUE);
+        if (hScheduleList) MoveWindow(hScheduleList, 10, 180, w - 20, schedH, TRUE);
+
+        MoveWindow(GetDlgItem(hWnd, 501), 10, btnY, 180, 40, TRUE);
+        MoveWindow(GetDlgItem(hWnd, 502), 200, btnY, 150, 40, TRUE);
+        MoveWindow(GetDlgItem(hWnd, 503), 360, btnY, 160, 40, TRUE);
+        MoveWindow(GetDlgItem(hWnd, 506), 530, btnY, 140, 40, TRUE);
+        MoveWindow(GetDlgItem(hWnd, 508), 680, btnY, 110, 40, TRUE);
+        if (hHintStatic) MoveWindow(hHintStatic, 800, btnY + 10, 220, 20, TRUE);
+
+        if (hSearchLabel) MoveWindow(hSearchLabel, 10, searchY, 110, 20, TRUE);
+        if (hSearchTeacher) MoveWindow(hSearchTeacher, 120, searchY, 220, 28, TRUE);
+        MoveWindow(GetDlgItem(hWnd, 507), 350, searchY, 70, 30, TRUE);
+        return 0;
+    }
     case WM_DESTROY: PostQuitMessage(0); break;
     default: return DefWindowProc(hWnd, msg, wParam, lParam);
     }
@@ -2010,7 +2042,12 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
     WNDCLASS rp = { 0 }; rp.lpfnWndProc = ReportWndProc; rp.hInstance = hInst; rp.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1); rp.lpszClassName = "ReportClass"; RegisterClass(&rp);
     WNDCLASS mc = { 0 }; mc.lpfnWndProc = MainWndProc; mc.hInstance = hInst; mc.hbrBackground = (HBRUSH)(COLOR_3DFACE+1); mc.lpszClassName = "MClass"; RegisterClass(&mc);
 
-    CreateWindow("LClass", "登录系统", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 450, 300, 310, 220, NULL, NULL, hInst, NULL);
+    {
+        int sw = GetSystemMetrics(SM_CXSCREEN);
+        int sh = GetSystemMetrics(SM_CYSCREEN);
+        CreateWindow("LClass", "登录系统", WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                     (sw - 310) / 2, (sh - 220) / 2, 310, 220, NULL, NULL, hInst, NULL);
+    }
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
