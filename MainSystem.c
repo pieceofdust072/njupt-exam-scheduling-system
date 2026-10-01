@@ -38,7 +38,7 @@ int IsProfessor(const char* title) {
 typedef struct {
     char id[20];          // 教师编号
     char name[50];        // 教师姓名
-    char dept[50];        // 所属院系
+    char subject[50];        // 所带专业/科目
     char title[20];       // 职称
     char specialReq[100]; // 特殊要求（日期/请假等）
     int taskCount;        // 已安排监考次数
@@ -47,7 +47,7 @@ typedef struct {
 typedef struct {
     char id[20];      // 旧版教师编号
     char name[50];    // 旧版教师姓名
-    char dept[50];    // 旧版院系
+    char subject[50];    // 旧版专业/科目
     char title[20];   // 旧版职称
     int taskCount;    // 旧版任务次数
 } TeacherLegacy;
@@ -87,7 +87,7 @@ typedef struct {
 HWND hTeacherList, hScheduleList; // 教师列表与排班列表句柄
 HWND hLogUser, hLogPass;          // 登录窗口输入框句柄
 HWND hRegUser, hRegPass, hRegConf;// 注册窗口输入框句柄
-HWND hEditID, hEditName, hEditDept, hEditTitle; // 教师编辑窗口输入框句柄
+HWND hEditID, hEditName, hEditSubject, hEditTitle; // 教师编辑窗口输入框句柄
 HWND hEditSpecialReq; // 特殊要求输入框句柄
 HWND hReqDatePicker, hReqReasonCombo; // 日期选择与原因下拉控件句柄
 HWND hSearchTeacher; // 教师查询输入框句柄
@@ -391,7 +391,7 @@ int LoadAllTeachers(Teacher* arr, int maxCount) {
             memset(&arr[cnt], 0, sizeof(Teacher));
             strcpy(arr[cnt].id, oldT.id);
             strcpy(arr[cnt].name, oldT.name);
-            strcpy(arr[cnt].dept, oldT.dept);
+            strcpy(arr[cnt].subject, oldT.subject);
             strcpy(arr[cnt].title, oldT.title);
             strcpy(arr[cnt].specialReq, "-");
             arr[cnt].taskCount = oldT.taskCount;
@@ -561,7 +561,7 @@ void BuildNoScheduleReason(const char* keyword, char* out, int outSize) {
         }
 
         for (int i = 0; i < rmCount; i++) {
-            if (strcmp(teachers[target].dept, rooms[i].subject) == 0) matchSubjectRooms++;
+            if (strcmp(teachers[target].subject, rooms[i].subject) == 0) matchSubjectRooms++;
             if (!IsTeacherUnavailableForRoom(&teachers[target], &rooms[i])) availableRooms++;
         }
 
@@ -930,8 +930,8 @@ int CompareTeacherPriority(const Teacher* left, const Teacher* right,
     int rightSame = dateLoads[rightIdx][curDateIdx];// right 在当前日期已排次数
     int leftOther = HasOtherDateAssignments(dateLoads[leftIdx], dateCount, curDateIdx);   // left 是否跨其他日期
     int rightOther = HasOtherDateAssignments(dateLoads[rightIdx], dateCount, curDateIdx); // right 是否跨其他日期
-    int leftMatch = (strcmp(left->dept, room->subject) == 0);   // left 是否专业匹配
-    int rightMatch = (strcmp(right->dept, room->subject) == 0); // right 是否专业匹配
+    int leftMatch = (strcmp(left->subject, room->subject) == 0);   // left 是否专业匹配
+    int rightMatch = (strcmp(right->subject, room->subject) == 0); // right 是否专业匹配
     int leftIsProf = IsProfessor(left->title);   // left 是否教授
     int rightIsProf = IsProfessor(right->title); // right 是否教授
     int leftEff = left->taskCount + (leftIsProf ? 1 : 0);       // left 有效负载
@@ -1011,7 +1011,7 @@ void RefreshTeacherList() {
         int pos = ListView_InsertItem(hTeacherList, &lvi);
         
         ListView_SetItemText(hTeacherList, pos, 1, t->name);
-        ListView_SetItemText(hTeacherList, pos, 2, t->dept);  
+        ListView_SetItemText(hTeacherList, pos, 2, t->subject);  
         ListView_SetItemText(hTeacherList, pos, 3, t->title);
         char buf[10]; sprintf(buf, "%d", t->taskCount);
         ListView_SetItemText(hTeacherList, pos, 4, buf);
@@ -1289,7 +1289,7 @@ void AutoSchedule() {
             if (!avail) continue;
 
             if (isProf) {
-                if (strcmp(allT[j].dept, rms[i].subject) == 0) {
+                if (strcmp(allT[j].subject, rms[i].subject) == 0) {
                     candidateIdx[cCount++] = j;
                 }
             } else if (allT[j].taskCount <= minNonProf) {
@@ -1329,7 +1329,7 @@ void AutoSchedule() {
         int mandatory = -1; // 任课监考必选位
         for (int j = 0; j < cCount; j++) {
             int idx = candidateIdx[j];
-            if (strcmp(allT[idx].dept, rms[i].subject) == 0) {
+            if (strcmp(allT[idx].subject, rms[i].subject) == 0) {
                 if (mandatory == -1 || allT[idx].taskCount < allT[mandatory].taskCount) {
                     mandatory = idx;
                 }
@@ -1427,12 +1427,12 @@ void AutoSchedule() {
             lvi.pszText = target->name;
             ListView_InsertItem(hScheduleList, &lvi);
             
-            char rmInfo[100], deptInfo[200];
+            char rmInfo[100], subjectInfo[200];
             sprintf(rmInfo, "[%s] %s", rms[i].id, rms[i].name);
-            sprintf(deptInfo, "%s (%s) | 角色:监考", target->dept, rms[i].subject);
+            sprintf(subjectInfo, "%s (%s) | 角色:监考", target->subject, rms[i].subject);
             
             ListView_SetItemText(hScheduleList, pos, 1, rmInfo);
-            ListView_SetItemText(hScheduleList, pos, 2, deptInfo);
+            ListView_SetItemText(hScheduleList, pos, 2, subjectInfo);
             ListView_SetItemText(hScheduleList, pos, 3, currentTimeStr[0] ? currentTimeStr : "-");
             ListView_SetItemText(hScheduleList, pos, 4, autoOperatorName);
 
@@ -1531,8 +1531,8 @@ LRESULT CALLBACK EditTeacherProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
         hEditID = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", editingTeacher.id, WS_CHILD | WS_VISIBLE, 80, 18, 150, 25, hWnd, NULL, NULL, NULL);
         CreateWindow("STATIC", "姓名:", WS_CHILD | WS_VISIBLE, 20, 60, 50, 20, hWnd, NULL, NULL, NULL);
         hEditName = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", editingTeacher.name, WS_CHILD | WS_VISIBLE, 80, 58, 150, 25, hWnd, NULL, NULL, NULL);
-        CreateWindow("STATIC", "部门:", WS_CHILD | WS_VISIBLE, 20, 100, 50, 20, hWnd, NULL, NULL, NULL);
-        hEditDept = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", editingTeacher.dept, WS_CHILD | WS_VISIBLE, 80, 98, 150, 25, hWnd, NULL, NULL, NULL);
+        CreateWindow("STATIC", "专业:", WS_CHILD | WS_VISIBLE, 20, 100, 50, 20, hWnd, NULL, NULL, NULL);
+        hEditSubject = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", editingTeacher.subject, WS_CHILD | WS_VISIBLE, 80, 98, 150, 25, hWnd, NULL, NULL, NULL);
         CreateWindow("STATIC", "职称:", WS_CHILD | WS_VISIBLE, 20, 140, 50, 20, hWnd, NULL, NULL, NULL);
         hEditTitle = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", editingTeacher.title, WS_CHILD | WS_VISIBLE, 80, 138, 150, 25, hWnd, NULL, NULL, NULL);
         CreateWindow("STATIC", "特殊要求:", WS_CHILD | WS_VISIBLE, 20, 180, 60, 20, hWnd, NULL, NULL, NULL);
@@ -1581,7 +1581,7 @@ LRESULT CALLBACK EditTeacherProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPar
             Teacher newData; // 待保存的新教师数据
             GetWindowText(hEditID, newData.id, 20);
             GetWindowText(hEditName, newData.name, 50);
-            GetWindowText(hEditDept, newData.dept, 50);
+            GetWindowText(hEditSubject, newData.subject, 50);
             GetWindowText(hEditTitle, newData.title, 20);
             GetWindowText(hEditSpecialReq, newData.specialReq, 100);
 
@@ -1818,7 +1818,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         // 上半区：教师列表。
         hTeacherList = CreateWindowEx(0, WC_LISTVIEW, "", WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL, 10, 10, 960, 150, hWnd, NULL, NULL, NULL);
         ListView_SetExtendedListViewStyle(hTeacherList, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
-        char* tH[] = { "ID", "姓名", "部门", "职称", "次数", "修改时间", "操作人", "特殊要求" }; // 教师列表列标题
+        char* tH[] = { "ID", "姓名", "专业", "职称", "次数", "修改时间", "操作人", "特殊要求" }; // 教师列表列标题
         int tW[] = { 60, 80, 100, 100, 50, 160, 100, 220 }; // 教师列表列宽
         for (int i = 0; i < 8; i++) {
             LVCOLUMN lvc = {0}; lvc.mask = LVCF_TEXT | LVCF_WIDTH; lvc.pszText = tH[i]; lvc.cx = tW[i];
@@ -1888,7 +1888,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
             if (sel != -1) {
                 ListView_GetItemText(hTeacherList, sel, 0, editingTeacher.id, 20);
                 ListView_GetItemText(hTeacherList, sel, 1, editingTeacher.name, 50);
-                ListView_GetItemText(hTeacherList, sel, 2, editingTeacher.dept, 50);
+                ListView_GetItemText(hTeacherList, sel, 2, editingTeacher.subject, 50);
                 ListView_GetItemText(hTeacherList, sel, 3, editingTeacher.title, 20);
                 ListView_GetItemText(hTeacherList, sel, 7, editingTeacher.specialReq, 100);
                 CreateWindow("EditClass", "修改教师", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 550, 300, 320, 330, hWnd, NULL, NULL, NULL);

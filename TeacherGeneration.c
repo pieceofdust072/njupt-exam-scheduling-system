@@ -11,17 +11,17 @@
 typedef struct {
     char id[20];          // 教师编号
     char name[50];        // 教师姓名
-    char dept[50];        // 所属院系
+    char subject[50];        // 所带专业/科目
     char title[20];       // 职称分类（主系统将 "教授"/"Professor" 均视为教授）
     char specialReq[100]; // 特殊要求文本
     int taskCount;        // 已安排任务次数
 } Teacher;
 
-// 用于随机拼接姓名/部门/职称的词库。
+// 用于随机拼接姓名/专业/职称的词库。
 char* firstNames[] = {"Zhang", "Wang", "Li", "Zhao", "Liu", "Chen", "Yang", "Zhou", "Wu", "Sun", "Xu", "Zhu", "Ma", "Hu", "Guo", "Lin", "He", "Gao", "Luo", "Zheng"};
 char* middleNames[] = {"Wei", "Fang", "Na", "Min", "Jing", "Qiang", "Lei", "Jun", "Yang", "Yong", "Ming", "Hua", "Xin", "Yu", "Bo", "Kai", "Tian", "Zhi", "Guo", "Hai"};
 char* lastNames[] = {"Wei", "Fang", "Na", "Min", "Jing", "Qiang", "Lei", "Jun", "Yang", "Yong", "Ming", "Hua", "Xin", "Yu", "Bo", "Kai", "Tian", "Zhi", "Guo", "Hai", "Ping", "An", "Sheng", "Cheng", "Tao", "Feng", "Qing", "Liang", "Dong", "Gang"};
-char* depts[] = {"Computer", "Automation", "Electronic", "Mathematics", "Language"};
+char* subjects[] = {"Computer", "Automation", "Electronic", "Mathematics", "Language"};
 char* titleList[] = {"Professor", "Regular Teacher"};
 
 // 生成 count 条教师数据并覆盖写入 teachers.dat。
@@ -38,7 +38,7 @@ void GenerateData(int count) {
                 firstNames[rand() % (sizeof(firstNames) / sizeof(firstNames[0]))],
                 middleNames[rand() % (sizeof(middleNames) / sizeof(middleNames[0]))],
                 lastNames[rand() % (sizeof(lastNames) / sizeof(lastNames[0]))]);
-        strcpy(t.dept, depts[rand() % (sizeof(depts) / sizeof(depts[0]))]);
+        strcpy(t.subject, subjects[rand() % (sizeof(subjects) / sizeof(subjects[0]))]);
 
         // 约 30% 概率为教授，70% 为普通教师。
         if ((rand() % 10) < 3) strcpy(t.title, titleList[0]);
@@ -64,10 +64,10 @@ int LoadData(Teacher t[], int max) {
 
 // 按表格格式打印教师信息，便于在命令行快速检查数据。
 void Display(Teacher t[], int n) {
-    printf("\n%-10s %-20s %-12s %-16s %-10s %-20s\n", "ID", "Name", "Department", "Title", "TaskCount", "SpecialReq");
+    printf("\n%-10s %-20s %-12s %-16s %-10s %-20s\n", "ID", "Name", "Subject", "Title", "TaskCount", "SpecialReq");
     printf("------------------------------------------------------------------------------------------------\n");
     for (int i = 0; i < n; i++) {
-        printf("%-10s %-20s %-12s %-16s %-10d %-20s\n", t[i].id, t[i].name, t[i].dept, t[i].title, t[i].taskCount, t[i].specialReq);
+        printf("%-10s %-20s %-12s %-16s %-10d %-20s\n", t[i].id, t[i].name, t[i].subject, t[i].title, t[i].taskCount, t[i].specialReq);
     }
 }
 
