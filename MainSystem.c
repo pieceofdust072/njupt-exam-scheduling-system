@@ -1813,10 +1813,9 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         CreateWindow("BUTTON", "开始专业对口排班", WS_CHILD | WS_VISIBLE, 10, 440, 180, 40, hWnd, (HMENU)501, NULL, NULL);
         CreateWindow("BUTTON", "修改选中教师", WS_CHILD | WS_VISIBLE, 200, 440, 150, 40, hWnd, (HMENU)502, NULL, NULL);
         CreateWindow("BUTTON", "增加考场安排信息", WS_CHILD | WS_VISIBLE, 360, 440, 160, 40, hWnd, (HMENU)503, NULL, NULL);
-        CreateWindow("BUTTON", "删除考场安排信息", WS_CHILD | WS_VISIBLE, 530, 440, 160, 40, hWnd, (HMENU)504, NULL, NULL);
-        CreateWindow("BUTTON", "更改考场安排信息", WS_CHILD | WS_VISIBLE, 700, 440, 160, 40, hWnd, (HMENU)505, NULL, NULL);
-        CreateWindow("BUTTON", "导出考场安排为TXT", WS_CHILD | WS_VISIBLE, 870, 440, 140, 40, hWnd, (HMENU)506, NULL, NULL);
-        CreateWindow("BUTTON", "连续性统计", WS_CHILD | WS_VISIBLE, 1020, 440, 110, 40, hWnd, (HMENU)508, NULL, NULL);
+        CreateWindow("BUTTON", "导出考场安排为TXT", WS_CHILD | WS_VISIBLE, 530, 440, 140, 40, hWnd, (HMENU)506, NULL, NULL);
+        CreateWindow("BUTTON", "连续性统计", WS_CHILD | WS_VISIBLE, 680, 440, 110, 40, hWnd, (HMENU)508, NULL, NULL);
+        CreateWindow("STATIC", "提示：右键排班列表可修改/删除", WS_CHILD | WS_VISIBLE, 800, 450, 220, 20, hWnd, NULL, NULL, NULL);
 
         CreateWindow("STATIC", "按老师姓名查询:", WS_CHILD | WS_VISIBLE, 10, 500, 110, 20, hWnd, NULL, NULL, NULL);
         hSearchTeacher = CreateWindowEx(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD | WS_VISIBLE, 120, 495, 220, 28, hWnd, NULL, NULL, NULL);
@@ -1825,6 +1824,33 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         RefreshScheduleList();
         RefreshTeacherList();
         break;
+
+    case WM_CONTEXTMENU:
+        // 排班列表右键菜单：自动选中右键命中的行，弹出「修改 / 删除」。
+        if ((HWND)wParam == hScheduleList) {
+            int sx = (int)(short)LOWORD(lParam);
+            int sy = (int)(short)HIWORD(lParam);
+            POINT pt = { sx, sy };
+            ScreenToClient(hScheduleList, &pt);
+
+            LVHITTESTINFO ht = { 0 };
+            ht.pt = pt;
+            int idx = ListView_HitTest(hScheduleList, &ht);
+            BOOL hasSel = (idx >= 0);
+
+            if (hasSel) {
+                ListView_SetItemState(hScheduleList, -1, 0, LVIS_SELECTED);
+                ListView_SetItemState(hScheduleList, idx, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+            }
+
+            HMENU hMenu = CreatePopupMenu();
+            AppendMenu(hMenu, MF_STRING | (hasSel ? MF_ENABLED : MF_GRAYED), 505, "修改选中安排");
+            AppendMenu(hMenu, MF_STRING | (hasSel ? MF_ENABLED : MF_GRAYED), 504, "删除选中安排");
+            TrackPopupMenu(hMenu, TPM_RIGHTBUTTON | TPM_TOPALIGN | TPM_LEFTALIGN, sx, sy, 0, hWnd, NULL);
+            DestroyMenu(hMenu);
+            return 0;
+        }
+        return DefWindowProc(hWnd, msg, wParam, lParam);
 
     case WM_COMMAND:
         // 按钮命令分发：每个按钮 ID 对应一类业务动作。
